@@ -15,6 +15,9 @@
 const char* ssid = "<Network_Name>";
 const char* password = "<Password>";
 
+// Webserver auf Port 80
+WebServer server(80);
+
 // NTP-Einstellungen
 const char* ntpServer = "pool.ntp.org";
 const long gmtOffset_sec = 3600;
@@ -26,30 +29,11 @@ const int daylightOffset_sec = 3600;
 #define SD_MOSI 23
 #define SD_CS 5
 
-// Webserver auf Port 80
-WebServer server(80);
-
 // Variablen für Temperatur und Luftfeuchtigkeit
 float temperature = 0.0;
 float humidity = 0.0;
 
-//const char* fileName = "/data.txt";
-
 std::vector<String> sensorList;
-
-// Funktion zum Deaktivieren des SPI-Interfaces (Power Saving)
-void disableSDPower() {
-    SPI.end();  // Stoppt die SPI-Kommunikation
-    pinMode(SD_CS, INPUT); // Deaktiviert den Chip Select Pin
-    Serial.println("[INFO] SPI deaktiviert für SD-Karte.");
-}
-
-// Funktion zum Aktivieren des SPI-Interfaces (wenn SD benötigt wird)
-void enableSDPower() {
-    pinMode(SD_CS, OUTPUT); // Setzt den Chip Select Pin auf OUTPUT
-    SPI.begin(SD_SCK, SD_MISO, SD_MOSI, SD_CS); // Startet SPI für SD-Karte
-    Serial.println("[INFO] SPI aktiviert für SD-Karte.");
-}
 
 // get the current timestamp
 String getTimeStamp() {
@@ -73,8 +57,6 @@ String getMonthlyFilePath(const String& sensorName) {
 
 // store data to file in monthly format
 void saveDataToFile(const String& sensorName, float temperature, float humidity) {
-    //enableSDPower();  // Aktivieren des SPI-Interfaces
-
     String filePath = getMonthlyFilePath(sensorName);
     String folderPath = "/" + sensorName;
 
@@ -93,8 +75,6 @@ void saveDataToFile(const String& sensorName, float temperature, float humidity)
     } else {
         Serial.printf("[FEHLER] Konnte Datei %s nicht öffnen!\n", filePath.c_str());
     }
-
-    //disableSDPower();  // Deaktivieren des SPI-Interfaces
 }
 
 // update the avaible sensor list
@@ -129,7 +109,7 @@ void handleSensorData() {
     String folderPath = "/" + sensorName;
     String filePath = folderPath + "/" + String(year) + "-" + String(month) + ".txt";
 
-    String html = "<html><body style='background-color:yellow; color:black;'>";
+    String html = "<html><body style='background-color:white; color:black;'>";
     html += "<h1>Letzte gemessene Werte für Sensor: " + sensorName + "</h1>";
 
     File file = SD.open(filePath);
@@ -211,7 +191,7 @@ void handleSensorHistory() {
         return;
     }
 
-    String html = "<html><body style='background-color:yellow; color:black;'>";
+    String html = "<html><body style='background-color:white; color:black;'>";
     html += "<h1>Historie für Sensor: " + sensorName + " (" + type + ")</h1>";
 
     if (type == "A") {
@@ -268,7 +248,6 @@ void handleSensorHistory() {
             html += "<p>[INFO] Keine Daten gefunden!</p>";
         }
     } 
-    
     else if (type == "D") {
         // Nur die Daten des aktuellen Tages anzeigen
     File file = SD.open(filePath);
@@ -293,8 +272,6 @@ void handleSensorHistory() {
         file.close();
     }
     }
-    
-    
     else {
         // Datei für den aktuellen Monat öffnen
         File file = SD.open(filePath);
@@ -325,7 +302,7 @@ void handleSensorHistory() {
 
 // HTTP-Handler: Root-Seite, where the user can choose a sensor
 void handleRoot() {    
-    String html = "<html><body style='background-color:pink; color:brown;'>";
+    String html = "<html><body style='background-color:white; color:black;'>";
     html += "<h1>Sensor-Auswahl</h1>";
     html += "<ul>";
 
@@ -348,50 +325,15 @@ void handleReceiveData() {
 
         Serial.printf("temperature: %.2f, humidity: %.2f\n", temperature, humidity);
 
-        updateSensorList(sensorName);
+        updateSensorList(sensorName); // Sensor Listen updaten ggf. neuen Sensor hinzufügen
 
-        saveDataToFile(sensorName, temperature, humidity);
+        saveDataToFile(sensorName, temperature, humidity);  // Daten speichern
 
         server.send(200, "text/plain", "Daten gespeichert");
     } else {
         server.send(400, "text/plain", "Fehlende Parameter");
     }
 }
-
-/*// HTTP-Handler: Historische Daten anzeigen
-void handleStoreData() {
-    File file = SD.open(fileName);
-    String html = "<html><head><meta charset=\"UTF-8\"></head><body style='background-color:yellow; color:black;'> ";
-    html += "<h1>Historische Sensordaten</h1>";
-
-    if (file) {
-        html += "<table border='1' style='width:100%;'><tr><th>Zeitstempel</th><th>Temperatur (\u00b0C)</th><th>Luftfeuchtigkeit (%)</th></tr>";
-
-        String line;
-        while (file.available()) {
-            line = file.readStringUntil('\n');
-            if (line.length() > 0) {
-                int firstComma = line.indexOf(',');
-                int secondComma = line.indexOf(',', firstComma + 1);
-
-                String timestamp = line.substring(0, firstComma);
-                String temperatureValue = line.substring(firstComma + 1, secondComma);
-                String humidityValue = line.substring(secondComma + 1);
-
-                html += "<tr><td>" + timestamp + "</td><td>" + temperatureValue + "</td><td>" + humidityValue + "</td></tr>";
-            }
-        }
-        html += "</table>";
-        file.close();
-    } else {
-        html += "<p>[FEHLER] Datei konnte nicht geöffnet werden!</p>";
-    }
-
-    html += "<br><button onclick=\"window.location.href='/'\">Zur\u00fcck zur Hauptseite</button>";
-    html += "</body></html>";
-
-    server.send(200, "text/html; charset=UTF-8", html);
-}*/
 
 void setup() {
     Serial.begin(115200);
@@ -412,9 +354,6 @@ void setup() {
 
     configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
 
-    // Zuerst SPI für SD-Karte aktivieren
-    //enableSDPower();
-
     SPI.begin(SD_SCK, SD_MISO, SD_MOSI, SD_CS);
 
     if (!SD.begin(SD_CS, SPI)) {
@@ -426,7 +365,6 @@ void setup() {
     // API-Endpunkte definieren
     server.on("/", HTTP_GET, handleRoot);
     server.on("/receiveData", HTTP_GET, handleReceiveData);
-    //server.on("/storeData", HTTP_GET, handleStoreData);
     server.on("/sensor", HTTP_GET, handleSensorData);
     server.on("/sensorHistory", HTTP_GET, handleSensorHistory);
 
