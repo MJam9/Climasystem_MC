@@ -57,5 +57,6 @@ The project focuses on accessibility: since the end-users are not microcontrolle
 
 ## Documentation
 For more detailed information, please refer to:
-- User Documentation (PDF)
-- Technical Documentation (PDF)
+- User Documentation ([UserDoku_MC_Climasystem.pdf](https://github.com/user-attachments/files/28749686/UserDoku_MC_Climasystem.pdf))
+- Technical Documentation ([TecDoku_MC_Climasystem.pdf](https://github.com/user-attachments/files/28749680/TecDoku_MC_Climasystem.pdf))
+
